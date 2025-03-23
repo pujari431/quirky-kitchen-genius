@@ -1,12 +1,14 @@
-
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Clock, Bookmark, BookmarkCheck, ChefHat, InfoIcon } from 'lucide-react';
+import { Clock, Bookmark, BookmarkCheck, ChefHat, InfoIcon, Loader2 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { useSupabase } from '@/hooks/useSupabase';
+import { toast } from 'sonner';
 
+// Keep the mock recipes as fallback
 const mockRecipes = [
   {
     id: 1,
@@ -37,8 +39,13 @@ const mockRecipes = [
   }
 ];
 
-const RecipeCard = ({ recipe }) => {
+const RecipeCard = ({ recipe, onSave }) => {
   const [saved, setSaved] = useState(false);
+  
+  const handleSave = () => {
+    setSaved(!saved);
+    onSave(recipe, !saved);
+  };
   
   return (
     <motion.div
@@ -66,7 +73,7 @@ const RecipeCard = ({ recipe }) => {
             variant="ghost"
             size="icon"
             className="absolute top-3 right-3 bg-white/80 hover:bg-white text-chef-primary rounded-full h-8 w-8"
-            onClick={() => setSaved(!saved)}
+            onClick={handleSave}
           >
             {saved ? <BookmarkCheck className="h-4 w-4 text-chef-highlight" /> : <Bookmark className="h-4 w-4" />}
           </Button>
@@ -108,6 +115,9 @@ const RecipeCard = ({ recipe }) => {
           
           <Button 
             className="w-full mt-5 bg-chef-primary hover:bg-chef-primary/90 text-white"
+            onClick={() => {
+              toast.success("Recipe view feature coming soon!");
+            }}
           >
             View Recipe
           </Button>
@@ -118,8 +128,37 @@ const RecipeCard = ({ recipe }) => {
 };
 
 const RecipeSection = () => {
+  // Use our Supabase hook
+  const { useRecipes, useSaveRecipe } = useSupabase();
+  const { data: recipes, isLoading, error } = useRecipes();
+  const saveRecipeMutation = useSaveRecipe();
+
+  const handleSaveRecipe = async (recipe, isSaving) => {
+    if (isSaving) {
+      try {
+        const { title, description, ingredients, time, difficulty, image } = recipe;
+        await saveRecipeMutation.mutateAsync({
+          title,
+          description,
+          ingredients,
+          time,
+          difficulty,
+          image
+        });
+        
+        toast.success("Recipe saved successfully!");
+      } catch (error) {
+        console.error('Error saving recipe:', error);
+        toast.error("Failed to save recipe");
+      }
+    } else {
+      // Handle unsave logic if needed
+      toast.info("Recipe removed from saved list");
+    }
+  };
+
   return (
-    <section className="py-20 px-6">
+    <section id="recipe-section" className="py-20 px-6">
       <div className="max-w-6xl mx-auto">
         <motion.div 
           className="text-center mb-12"
@@ -134,14 +173,34 @@ const RecipeSection = () => {
           </p>
         </motion.div>
         
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-          {mockRecipes.map((recipe, index) => (
-            <RecipeCard 
-              key={recipe.id} 
-              recipe={recipe} 
-            />
-          ))}
-        </div>
+        {isLoading ? (
+          <div className="flex justify-center items-center py-12">
+            <Loader2 className="h-12 w-12 text-chef-primary animate-spin" />
+          </div>
+        ) : error ? (
+          <div className="text-center py-8">
+            <p className="text-red-500">Failed to load recipes. Using mock data instead.</p>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mt-8">
+              {mockRecipes.map((recipe) => (
+                <RecipeCard 
+                  key={recipe.id} 
+                  recipe={recipe}
+                  onSave={handleSaveRecipe}
+                />
+              ))}
+            </div>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            {(recipes && recipes.length > 0 ? recipes : mockRecipes).map((recipe) => (
+              <RecipeCard 
+                key={recipe.id} 
+                recipe={recipe}
+                onSave={handleSaveRecipe}
+              />
+            ))}
+          </div>
+        )}
         
         <motion.div 
           className="mt-12 text-center"
@@ -152,6 +211,9 @@ const RecipeSection = () => {
         >
           <Button 
             className="bg-transparent hover:bg-chef-muted text-chef-primary border border-chef-primary/20 px-8"
+            onClick={() => {
+              toast.info("More recipes feature coming soon!");
+            }}
           >
             Show More Recipes
           </Button>

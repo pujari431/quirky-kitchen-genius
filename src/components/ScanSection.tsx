@@ -1,9 +1,9 @@
-
 import React, { useState, useRef } from 'react';
 import { motion } from 'framer-motion';
-import { Camera, Loader2, Check, Image as ImageIcon, RefreshCw } from 'lucide-react';
+import { Camera, Loader2, Check, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
+import { useSupabase } from '@/hooks/useSupabase';
 
 const ScanSection = () => {
   const [scanning, setScanning] = useState(false);
@@ -12,6 +12,11 @@ const ScanSection = () => {
   const [detectedIngredients, setDetectedIngredients] = useState<string[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
+
+  // Use our Supabase hook
+  const { useAddIngredients, useGenerateRecipes } = useSupabase();
+  const addIngredientsMutation = useAddIngredients();
+  const generateRecipesMutation = useGenerateRecipes();
   
   const handleScan = () => {
     if (fileInputRef.current) {
@@ -28,38 +33,85 @@ const ScanSection = () => {
     reader.onload = (e) => {
       if (e.target?.result) {
         setImagePreview(e.target.result as string);
-        startScanProcess();
+        startScanProcess(file);
       }
     };
     reader.readAsDataURL(file);
   };
   
-  const startScanProcess = () => {
+  const startScanProcess = async (file: File) => {
     setScanning(true);
     
-    // Simulate API call to detect ingredients
-    setTimeout(() => {
+    try {
+      // Call Supabase Edge Function to detect ingredients from image
+      const formData = new FormData();
+      formData.append('image', file);
+      
+      // For now, we'll use mock data until the Edge Function is implemented
+      // In production, we'd call the Edge Function here
+      setTimeout(async () => {
+        // Mock detected ingredients
+        const mockIngredients = [
+          'Tomatoes',
+          'Onions',
+          'Garlic',
+          'Olive oil',
+          'Salt',
+          'Pepper',
+          'Pasta',
+        ];
+        
+        setDetectedIngredients(mockIngredients);
+        setScanned(true);
+        setScanning(false);
+        
+        // Save ingredients to Supabase
+        try {
+          await addIngredientsMutation.mutateAsync(mockIngredients);
+          
+          toast({
+            title: "Ingredients Detected!",
+            description: `Found ${mockIngredients.length} ingredients and saved to your inventory.`,
+          });
+        } catch (error) {
+          console.error('Error saving ingredients:', error);
+          toast({
+            title: "Error",
+            description: "Could not save ingredients to your inventory.",
+            variant: "destructive",
+          });
+        }
+      }, 2000);
+    } catch (error) {
+      console.error('Error detecting ingredients:', error);
       setScanning(false);
-      setScanned(true);
-      
-      // Mock detected ingredients - in a real app, this would come from an API
-      const mockIngredients = [
-        'Tomatoes',
-        'Onions',
-        'Garlic',
-        'Olive oil',
-        'Salt',
-        'Pepper',
-        'Pasta',
-      ];
-      
-      setDetectedIngredients(mockIngredients);
+      toast({
+        title: "Error",
+        description: "Could not detect ingredients from the image.",
+        variant: "destructive",
+      });
+    }
+  };
+  
+  const handleGenerateRecipes = async () => {
+    try {
+      await generateRecipesMutation.mutateAsync(detectedIngredients);
       
       toast({
-        title: "Ingredients Detected!",
-        description: `Found ${mockIngredients.length} ingredients in your image.`,
+        title: "Recipes Generated!",
+        description: "Check out your new recipe suggestions.",
       });
-    }, 2500);
+
+      // Scroll to recipe section
+      document.getElementById('recipe-section')?.scrollIntoView({ behavior: 'smooth' });
+    } catch (error) {
+      console.error('Error generating recipes:', error);
+      toast({
+        title: "Error",
+        description: "Could not generate recipes.",
+        variant: "destructive",
+      });
+    }
   };
   
   const resetScan = () => {
@@ -231,9 +283,18 @@ const ScanSection = () => {
                     </Button>
                     
                     <Button
+                      onClick={handleGenerateRecipes}
                       className="px-6 py-5 h-auto bg-chef-primary hover:bg-chef-primary/90"
+                      disabled={generateRecipesMutation.isPending}
                     >
-                      Get Recipe Suggestions
+                      {generateRecipesMutation.isPending ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Generating...
+                        </>
+                      ) : (
+                        "Get Recipe Suggestions"
+                      )}
                     </Button>
                   </div>
                 )}
