@@ -1,12 +1,20 @@
 
 import { createClient } from '@supabase/supabase-js';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { toast } from 'sonner';
 
 // Initialize Supabase client
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string;
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
+// Add default values for development to prevent crashes
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
 
-const supabase = createClient(supabaseUrl, supabaseAnonKey);
+// Check if Supabase credentials are available
+const isSupabaseConfigured = supabaseUrl && supabaseAnonKey;
+
+// Create the client only if we have the required configuration
+const supabase = isSupabaseConfigured 
+  ? createClient(supabaseUrl, supabaseAnonKey)
+  : null;
 
 interface Ingredient {
   id: number;
@@ -30,8 +38,18 @@ interface Recipe {
 export const useSupabase = () => {
   const queryClient = useQueryClient();
 
+  // Show warning if Supabase is not configured
+  if (!isSupabaseConfigured) {
+    console.warn('Supabase URL and/or Anonymous Key not configured. Please add them to your environment variables.');
+  }
+
   // Get the current user
   const getCurrentUser = async () => {
+    if (!supabase) {
+      toast.error('Supabase is not configured properly');
+      throw new Error('Supabase is not configured');
+    }
+    
     const { data, error } = await supabase.auth.getUser();
     if (error) throw error;
     return data?.user;
@@ -39,6 +57,11 @@ export const useSupabase = () => {
 
   // Sign out the user
   const signOut = async () => {
+    if (!supabase) {
+      toast.error('Supabase is not configured properly');
+      throw new Error('Supabase is not configured');
+    }
+    
     const { error } = await supabase.auth.signOut();
     if (error) throw error;
   };
@@ -48,6 +71,11 @@ export const useSupabase = () => {
     return useQuery({
       queryKey: ['ingredients'],
       queryFn: async () => {
+        if (!supabase) {
+          toast.error('Supabase is not configured properly');
+          throw new Error('Supabase is not configured');
+        }
+        
         const { data: ingredients, error } = await supabase
           .from('ingredients')
           .select('*')
@@ -55,7 +83,9 @@ export const useSupabase = () => {
 
         if (error) throw error;
         return ingredients as Ingredient[];
-      }
+      },
+      // Only enable if Supabase is configured
+      enabled: !!supabase
     });
   };
 
@@ -63,6 +93,11 @@ export const useSupabase = () => {
   const useAddIngredients = () => {
     return useMutation({
       mutationFn: async (ingredients: string[]) => {
+        if (!supabase) {
+          toast.error('Supabase is not configured properly');
+          throw new Error('Supabase is not configured');
+        }
+        
         const user = await getCurrentUser();
         if (!user) throw new Error('User not authenticated');
 
@@ -89,13 +124,26 @@ export const useSupabase = () => {
   const useGenerateRecipes = () => {
     return useMutation({
       mutationFn: async (ingredients: string[]) => {
-        // Call your Supabase Edge Function to generate recipes
-        const { data, error } = await supabase.functions.invoke('generate-recipes', {
-          body: { ingredients }
-        });
+        if (!supabase) {
+          toast.error('Supabase is not configured properly');
+          // Return mock recipes instead for development
+          return mockRecipes;
+        }
+        
+        try {
+          // Call your Supabase Edge Function to generate recipes
+          const { data, error } = await supabase.functions.invoke('generate-recipes', {
+            body: { ingredients }
+          });
 
-        if (error) throw error;
-        return data as Recipe[];
+          if (error) throw error;
+          return data as Recipe[];
+        } catch (error) {
+          console.error('Error generating recipes:', error);
+          toast.error('Failed to generate recipes, using mock data instead');
+          // Return mock recipes as fallback
+          return mockRecipes;
+        }
       }
     });
   };
@@ -105,6 +153,11 @@ export const useSupabase = () => {
     return useQuery({
       queryKey: ['recipes'],
       queryFn: async () => {
+        if (!supabase) {
+          toast.error('Supabase is not configured properly');
+          throw new Error('Supabase is not configured');
+        }
+        
         const { data: recipes, error } = await supabase
           .from('recipes')
           .select('*')
@@ -112,7 +165,9 @@ export const useSupabase = () => {
 
         if (error) throw error;
         return recipes as Recipe[];
-      }
+      },
+      // Only enable if Supabase is configured
+      enabled: !!supabase
     });
   };
 
@@ -120,6 +175,11 @@ export const useSupabase = () => {
   const useSaveRecipe = () => {
     return useMutation({
       mutationFn: async (recipe: Omit<Recipe, 'id' | 'user_id' | 'created_at'>) => {
+        if (!supabase) {
+          toast.error('Supabase is not configured properly');
+          throw new Error('Supabase is not configured');
+        }
+        
         const user = await getCurrentUser();
         if (!user) throw new Error('User not authenticated');
 
@@ -137,14 +197,53 @@ export const useSupabase = () => {
     });
   };
 
+  // Mock recipes for development when Supabase is not configured
+  const mockRecipes = [
+    {
+      id: 1,
+      title: "Spicy Peanut Butter Ramen",
+      description: "A unique fusion of creamy peanut butter with instant ramen, elevated with whatever vegetables you have on hand.",
+      time: "15 min",
+      difficulty: "Easy",
+      ingredients: ["Instant ramen", "Peanut butter", "Hot sauce", "Vegetables"],
+      image: "https://images.unsplash.com/photo-1569718212165-3a8278d5f624?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=800&q=80",
+      user_id: "mock-user-id",
+      created_at: new Date().toISOString()
+    },
+    {
+      id: 2,
+      title: "Apple-Cereal Fritters",
+      description: "Transform breakfast cereals and apples into delicious fritters with a sweet and crunchy texture.",
+      time: "25 min",
+      difficulty: "Medium",
+      ingredients: ["Apples", "Breakfast cereal", "Eggs", "Flour", "Cinnamon"],
+      image: "https://images.unsplash.com/photo-1609951651556-5334e2706168?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=800&q=80",
+      user_id: "mock-user-id",
+      created_at: new Date().toISOString()
+    },
+    {
+      id: 3,
+      title: "Savory Oatmeal Bowl",
+      description: "A savory twist on traditional oatmeal, incorporating cheese, herbs, and whatever protein you have available.",
+      time: "10 min",
+      difficulty: "Easy",
+      ingredients: ["Oats", "Cheese", "Herbs", "Protein (eggs/chicken)"],
+      image: "https://images.unsplash.com/photo-1607532941433-304659e8198a?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=800&q=80",
+      user_id: "mock-user-id",
+      created_at: new Date().toISOString()
+    }
+  ];
+
   return {
     supabase,
+    isSupabaseConfigured,
     getCurrentUser,
     signOut,
     useIngredients,
     useAddIngredients,
     useGenerateRecipes,
     useRecipes,
-    useSaveRecipe
+    useSaveRecipe,
+    mockRecipes
   };
 };
