@@ -28,6 +28,16 @@ const SupabaseConfigCheck = () => {
           id: "supabase-config-warning"
         }
       );
+      
+      // Add a more visible error message for development
+      console.error(
+        "%c⚠️ Supabase Configuration Missing ⚠️",
+        "background: #ff5555; color: white; font-size: 14px; padding: 5px;",
+        "\nTo use authentication and database features, you need to connect to Supabase:",
+        "\n1. Create a Supabase project at https://supabase.com",
+        "\n2. Get your project URL and anon key from the project settings",
+        "\n3. Add them to your environment variables as VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY"
+      );
     }
   }, [isSupabaseConfigured]);
 
@@ -42,7 +52,7 @@ const App = () => (
       <SupabaseConfigCheck />
       <BrowserRouter>
         <Routes>
-          <Route path="/" element={<Index />} />
+          <Route path="/" element={<AuthWrapper requireAuth={false}><Index /></AuthWrapper>} />
           <Route path="/signin" element={<SignIn />} />
           <Route path="/signup" element={<SignUp />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}

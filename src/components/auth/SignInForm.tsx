@@ -33,11 +33,18 @@ const SignInForm = () => {
   });
 
   const onSubmit = (values: FormValues) => {
-    signIn(values, {
-      onSuccess: () => {
-        navigate('/');
+    // Ensure we're passing the required fields to signIn
+    signIn(
+      {
+        email: values.email,
+        password: values.password,
       },
-    });
+      {
+        onSuccess: () => {
+          navigate('/');
+        },
+      }
+    );
   };
 
   return (

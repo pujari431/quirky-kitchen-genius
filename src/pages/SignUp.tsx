@@ -3,9 +3,11 @@ import SignUpForm from '@/components/auth/SignUpForm';
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useSupabase } from '@/hooks/useSupabase';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { AlertTriangle } from 'lucide-react';
 
 const SignUp = () => {
-  const { user, loading } = useSupabase();
+  const { user, loading, isSupabaseConfigured } = useSupabase();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -27,6 +29,15 @@ const SignUp = () => {
   return (
     <div className="min-h-screen pt-20 pb-10 flex flex-col items-center">
       <div className="w-full max-w-md">
+        {!isSupabaseConfigured && (
+          <Alert variant="destructive" className="mb-6">
+            <AlertTriangle className="h-4 w-4" />
+            <AlertTitle>Supabase Not Configured</AlertTitle>
+            <AlertDescription>
+              Authentication requires Supabase configuration. This is a demo mode with limited functionality.
+            </AlertDescription>
+          </Alert>
+        )}
         <SignUpForm />
       </div>
     </div>
