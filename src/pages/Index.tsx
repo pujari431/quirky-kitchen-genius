@@ -7,6 +7,7 @@ import FeaturesSection from '@/components/FeaturesSection';
 import ScanSection from '@/components/ScanSection';
 import RecipeSection from '@/components/RecipeSection';
 import Footer from '@/components/Footer';
+import ConnectSection from '@/components/ConnectSection';
 
 const Index = () => {
   const { scrollYProgress } = useScroll();
@@ -34,6 +35,7 @@ const Index = () => {
         <FeaturesSection />
         <ScanSection />
         <RecipeSection />
+        <ConnectSection />
       </main>
       
       <Footer />
