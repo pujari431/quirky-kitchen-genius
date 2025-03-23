@@ -1,12 +1,42 @@
-// Update this page (the content is just a fallback if you fail to update the page)
+
+import React, { useEffect } from 'react';
+import { motion, useScroll, useSpring } from 'framer-motion';
+import Header from '@/components/Header';
+import Hero from '@/components/Hero';
+import FeaturesSection from '@/components/FeaturesSection';
+import ScanSection from '@/components/ScanSection';
+import RecipeSection from '@/components/RecipeSection';
+import Footer from '@/components/Footer';
 
 const Index = () => {
+  const { scrollYProgress } = useScroll();
+  const scaleX = useSpring(scrollYProgress, {
+    stiffness: 100,
+    damping: 30,
+    restDelta: 0.001
+  });
+  
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, []);
+
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-100">
-      <div className="text-center">
-        <h1 className="text-4xl font-bold mb-4">Welcome to Your Blank App</h1>
-        <p className="text-xl text-gray-600">Start building your amazing project here!</p>
-      </div>
+    <div className="min-h-screen bg-white relative">
+      <motion.div 
+        className="fixed top-0 left-0 right-0 h-1 bg-chef-accent origin-left z-50"
+        style={{ scaleX }}
+      />
+      
+      <Header />
+      
+      <main>
+        <Hero />
+        <FeaturesSection />
+        <ScanSection />
+        <RecipeSection />
+      </main>
+      
+      <Footer />
     </div>
   );
 };
