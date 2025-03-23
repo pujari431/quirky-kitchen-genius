@@ -1,8 +1,7 @@
-# Welcome to your Lovable project
+# Welcome to Invisible Kitchen
 
 ## Project info
 
-**URL**: https://lovable.dev/projects/3c9d3bfe-5eac-4b98-bc86-5efdafa02e24
 
 ## How can I edit this code?
 
