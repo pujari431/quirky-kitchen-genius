@@ -1,12 +1,16 @@
 
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Menu, X } from 'lucide-react';
+import { Menu, X, LogIn, LogOut, User } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { useNavigate, Link } from 'react-router-dom';
+import { useSupabase } from '@/hooks/useSupabase';
 
 const Header = () => {
   const [isScrolled, setIsScrolled] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const { user, signOut } = useSupabase();
+  const navigate = useNavigate();
   
   // Track scroll position
   useEffect(() => {
@@ -17,6 +21,12 @@ const Header = () => {
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
+
+  const handleSignOut = async () => {
+    await signOut();
+    navigate('/');
+    setMobileMenuOpen(false);
+  };
 
   return (
     <header 
@@ -31,10 +41,10 @@ const Header = () => {
           transition={{ duration: 0.4 }}
           className="flex items-center"
         >
-          <a href="#" className="text-xl font-bold text-chef-primary flex items-center gap-2">
+          <Link to="/" className="text-xl font-bold text-chef-primary flex items-center gap-2">
             <span className="text-chef-accent text-2xl">IC</span>
             Invisible Chef
-          </a>
+          </Link>
         </motion.div>
         
         {/* Desktop Navigation */}
@@ -44,7 +54,7 @@ const Header = () => {
           animate={{ opacity: 1 }}
           transition={{ delay: 0.1, duration: 0.4 }}
         >
-          {['How It Works', 'Features', 'Recipes', 'About'].map((item) => (
+          {['How It Works', 'Features', 'Recipes'].map((item) => (
             <a 
               key={item}
               href="#"
@@ -54,9 +64,29 @@ const Header = () => {
             </a>
           ))}
           
-          <Button className="bg-chef-primary hover:bg-chef-primary/90 text-white">
-            Sign In
-          </Button>
+          {user ? (
+            <div className="flex items-center gap-4">
+              <div className="flex items-center gap-2">
+                <User className="h-4 w-4 text-chef-primary" />
+                <span className="text-sm font-medium">{user.email}</span>
+              </div>
+              <Button 
+                onClick={handleSignOut}
+                className="bg-chef-primary hover:bg-chef-primary/90 text-white"
+              >
+                <LogOut className="h-4 w-4 mr-2" />
+                Sign Out
+              </Button>
+            </div>
+          ) : (
+            <Button 
+              onClick={() => navigate('/signin')}
+              className="bg-chef-primary hover:bg-chef-primary/90 text-white"
+            >
+              <LogIn className="h-4 w-4 mr-2" />
+              Sign In
+            </Button>
+          )}
         </motion.nav>
         
         {/* Mobile Menu Button */}
@@ -104,7 +134,7 @@ const Header = () => {
               </div>
               
               <nav className="flex flex-col space-y-6">
-                {['How It Works', 'Features', 'Recipes', 'About'].map((item, i) => (
+                {['How It Works', 'Features', 'Recipes'].map((item, i) => (
                   <motion.a 
                     key={item}
                     href="#"
@@ -122,9 +152,32 @@ const Header = () => {
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.3, duration: 0.3 }}
                 >
-                  <Button className="w-full bg-chef-primary hover:bg-chef-primary/90 text-white">
-                    Sign In
-                  </Button>
+                  {user ? (
+                    <div className="space-y-4">
+                      <div className="flex items-center gap-2 py-2">
+                        <User className="h-4 w-4 text-chef-primary" />
+                        <span className="text-sm font-medium">{user.email}</span>
+                      </div>
+                      <Button 
+                        onClick={handleSignOut}
+                        className="w-full bg-chef-primary hover:bg-chef-primary/90 text-white"
+                      >
+                        <LogOut className="h-4 w-4 mr-2" />
+                        Sign Out
+                      </Button>
+                    </div>
+                  ) : (
+                    <Button 
+                      onClick={() => {
+                        navigate('/signin');
+                        setMobileMenuOpen(false);
+                      }}
+                      className="w-full bg-chef-primary hover:bg-chef-primary/90 text-white"
+                    >
+                      <LogIn className="h-4 w-4 mr-2" />
+                      Sign In
+                    </Button>
+                  )}
                 </motion.div>
               </nav>
             </div>

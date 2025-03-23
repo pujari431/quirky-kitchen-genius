@@ -1,7 +1,7 @@
-
 import { createClient } from '@supabase/supabase-js';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
+import { useState, useEffect } from 'react';
 
 // Initialize Supabase client
 // Add default values for development to prevent crashes
@@ -35,8 +35,56 @@ interface Recipe {
   created_at: string;
 }
 
+interface SignInCredentials {
+  email: string;
+  password: string;
+}
+
+interface SignUpCredentials extends SignInCredentials {
+  name?: string;
+}
+
 export const useSupabase = () => {
   const queryClient = useQueryClient();
+  const [user, setUser] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+
+  // Check for user session on mount
+  useEffect(() => {
+    const checkUser = async () => {
+      if (!supabase) {
+        setLoading(false);
+        return;
+      }
+      
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        setUser(user);
+      } catch (error) {
+        console.error('Error fetching user:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    // Set up auth state listener
+    const { data: { subscription } } = supabase?.auth.onAuthStateChange(
+      (_event, session) => {
+        setUser(session?.user || null);
+        if (session?.user) {
+          queryClient.invalidateQueries({ queryKey: ['ingredients'] });
+          queryClient.invalidateQueries({ queryKey: ['recipes'] });
+        }
+      }
+    ) || { data: { subscription: null } };
+
+    checkUser();
+
+    // Clean up subscription when unmounting
+    return () => {
+      subscription?.unsubscribe();
+    };
+  }, [queryClient]);
 
   // Show warning if Supabase is not configured
   if (!isSupabaseConfigured) {
@@ -55,6 +103,61 @@ export const useSupabase = () => {
     return data?.user;
   };
 
+  // Sign in with email and password
+  const useSignIn = () => {
+    return useMutation({
+      mutationFn: async ({ email, password }: SignInCredentials) => {
+        if (!supabase) {
+          toast.error('Supabase is not configured properly');
+          throw new Error('Supabase is not configured');
+        }
+        
+        const { data, error } = await supabase.auth.signInWithPassword({
+          email,
+          password
+        });
+        
+        if (error) throw error;
+        return data;
+      },
+      onSuccess: () => {
+        toast.success('Signed in successfully');
+      },
+      onError: (error: any) => {
+        toast.error(`Sign in failed: ${error.message}`);
+      }
+    });
+  };
+
+  // Sign up with email and password
+  const useSignUp = () => {
+    return useMutation({
+      mutationFn: async ({ email, password, name }: SignUpCredentials) => {
+        if (!supabase) {
+          toast.error('Supabase is not configured properly');
+          throw new Error('Supabase is not configured');
+        }
+        
+        const { data, error } = await supabase.auth.signUp({
+          email,
+          password,
+          options: {
+            data: { name }
+          }
+        });
+        
+        if (error) throw error;
+        return data;
+      },
+      onSuccess: () => {
+        toast.success('Account created! Please check your email to confirm your account.');
+      },
+      onError: (error: any) => {
+        toast.error(`Sign up failed: ${error.message}`);
+      }
+    });
+  };
+
   // Sign out the user
   const signOut = async () => {
     if (!supabase) {
@@ -64,6 +167,7 @@ export const useSupabase = () => {
     
     const { error } = await supabase.auth.signOut();
     if (error) throw error;
+    toast.success('Signed out successfully');
   };
 
   // Fetch user's ingredients
@@ -238,7 +342,11 @@ export const useSupabase = () => {
     supabase,
     isSupabaseConfigured,
     getCurrentUser,
+    user,
+    loading,
     signOut,
+    useSignIn,
+    useSignUp,
     useIngredients,
     useAddIngredients,
     useGenerateRecipes,
